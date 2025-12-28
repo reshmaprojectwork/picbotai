@@ -1,0 +1,18 @@
+[Unit]
+Description=PicBot AI - SmolVLM Image Analysis Application
+After=network.target
+
+[Service]
+Type=notify
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/picbotai
+Environment="PATH=/home/ubuntu/picbotai/.venv/bin"
+ExecStart=/home/ubuntu/picbotai/.venv/bin/gunicorn --config /home/ubuntu/picbotai/gunicorn_config.py app:app
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/picbotai/stdout.log
+StandardError=append:/var/log/picbotai/stderr.log
+
+[Install]
+WantedBy=multi-user.target

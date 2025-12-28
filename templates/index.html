@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google-adsense-account" content="ca-pub-6256904491142767">
+<title>picbotai</title>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6256904491142767"
+     crossorigin="anonymous"></script>
+<style>
+  body { font-family: sans-serif; text-align: center; margin: 20px; }
+  video, img.preview { border: 1px solid #ccc; width: 400px; height: 300px; object-fit: cover; }
+  #output { margin-top: 20px; font-size: 16px; }
+  input, button { padding: 8px; margin: 5px; }
+  .upload-section { margin-top: 20px; }
+  .camera-controls { margin: 10px 0; }
+  #switchCamera { background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+  #switchCamera:hover { background-color: #45a049; }
+</style>
+</head>
+<body>
+<h1>Image Capture</h1>
+
+<!-- Webcam Section -->
+<video id="webcam" autoplay playsinline></video><br>
+<div class="camera-controls">
+  <button id="switchCamera">🔄 Switch Camera</button>
+  <button id="capture">📸 Capture & Analyze</button>
+</div>
+
+<!-- Image Upload Section -->
+<div class="upload-section">
+  <h3>Or Upload an Image</h3>
+  <input type="file" id="imageUpload" accept="image/*">
+  <img id="preview" class="preview" style="display:none;" alt="Uploaded preview">
+  <button id="analyzeUpload">🧠 Analyze Uploaded Image</button>
+</div>
+
+<!-- Common Input -->
+<br>
+<input type="text" id="instruction" placeholder="Enter instruction (e.g., describe objects)">
+<div id="output"></div>
+
+<script>
+const video = document.getElementById("webcam");
+const outputDiv = document.getElementById("output");
+const instructionInput = document.getElementById("instruction");
+const uploadInput = document.getElementById("imageUpload");
+const previewImg = document.getElementById("preview");
+
+// Camera switching variables
+let currentFacingMode = "user"; // Start with front camera
+let currentStream = null;
+
+// === Webcam Access ===
+async function startCamera(facingMode) {
+  // Stop existing stream
+  if (currentStream) {
+    currentStream.getTracks().forEach(track => track.stop());
+  }
+
+  try {
+    const constraints = {
+      video: { facingMode: facingMode }
+    };
+    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = currentStream;
+  } catch (err) {
+    alert("Camera access denied: " + err);
+  }
+}
+
+// Initialize with front camera
+startCamera(currentFacingMode);
+
+// === Switch Camera ===
+document.getElementById("switchCamera").addEventListener("click", () => {
+  currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
+  startCamera(currentFacingMode);
+});
+
+// === Capture Webcam Frame ===
+document.getElementById("capture").addEventListener("click", async () => {
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const imageData = canvas.toDataURL("image/png");
+  await analyzeImage(imageData);
+});
+
+// === Handle Image Upload ===
+uploadInput.addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    previewImg.src = e.target.result;
+    previewImg.style.display = "block";
+  };
+  reader.readAsDataURL(file);
+});
+
+// === Analyze Uploaded Image ===
+document.getElementById("analyzeUpload").addEventListener("click", async () => {
+  if (!previewImg.src) {
+    alert("Please upload an image first!");
+    return;
+  }
+  await analyzeImage(previewImg.src);
+});
+
+// === Common Analyze Function ===
+async function analyzeImage(imageData) {
+  const instruction = instructionInput.value || "Describe the scene in the image.";
+  outputDiv.innerHTML = "Processing...";
+
+  try {
+    const response = await fetch("/process_frame", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: imageData, instruction })
+    });
+    const result = await response.json();
+    outputDiv.innerHTML = result.output || "No response from AI";
+  } catch (err) {
+    outputDiv.innerHTML = "Error: " + err;
+  }
+}
+</script>
+</body>
+</html>
